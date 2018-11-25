@@ -15,6 +15,7 @@
  */
 package com.jakewharton.retrofit2.adapter.kotlin.coroutines
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
 import retrofit2.Call
@@ -52,16 +53,16 @@ class CoroutineCallAdapterFactory private constructor() : CallAdapter.Factory() 
   }
 
   override fun get(
-      returnType: Type,
-      annotations: Array<out Annotation>,
-      retrofit: Retrofit
+          returnType: Type,
+          annotations: Array<out Annotation>,
+          retrofit: Retrofit
   ): CallAdapter<*, *>? {
     if (Deferred::class.java != getRawType(returnType)) {
       return null
     }
     if (returnType !is ParameterizedType) {
       throw IllegalStateException(
-          "Deferred return type must be parameterized as Deferred<Foo> or Deferred<out Foo>")
+              "Deferred return type must be parameterized as Deferred<Foo> or Deferred<out Foo>")
     }
     val responseType = getParameterUpperBound(0, returnType)
 
@@ -69,7 +70,7 @@ class CoroutineCallAdapterFactory private constructor() : CallAdapter.Factory() 
     return if (rawDeferredType == Response::class.java) {
       if (responseType !is ParameterizedType) {
         throw IllegalStateException(
-            "Response must be parameterized as Response<Foo> or Response<out Foo>")
+                "Response must be parameterized as Response<Foo> or Response<out Foo>")
       }
       ResponseCallAdapter<Any>(getParameterUpperBound(0, responseType))
     } else {
@@ -78,7 +79,7 @@ class CoroutineCallAdapterFactory private constructor() : CallAdapter.Factory() 
   }
 
   private class BodyCallAdapter<T>(
-      private val responseType: Type
+          private val responseType: Type
   ) : CallAdapter<T, Deferred<T>> {
 
     override fun responseType() = responseType
@@ -87,7 +88,7 @@ class CoroutineCallAdapterFactory private constructor() : CallAdapter.Factory() 
       val deferred = CompletableDeferred<T>()
 
       deferred.invokeOnCompletion {
-        if (deferred.isCancelled) {
+        if (deferred.isCancelled && it is CancellationException) {
           call.cancel()
         }
       }
@@ -111,7 +112,7 @@ class CoroutineCallAdapterFactory private constructor() : CallAdapter.Factory() 
   }
 
   private class ResponseCallAdapter<T>(
-      private val responseType: Type
+          private val responseType: Type
   ) : CallAdapter<T, Deferred<Response<T>>> {
 
     override fun responseType() = responseType
@@ -120,7 +121,7 @@ class CoroutineCallAdapterFactory private constructor() : CallAdapter.Factory() 
       val deferred = CompletableDeferred<Response<T>>()
 
       deferred.invokeOnCompletion {
-        if (deferred.isCancelled) {
+        if (deferred.isCancelled && it is CancellationException) {
           call.cancel()
         }
       }
